@@ -4,8 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\OrderPlaced;
 use App\Events\OrderStatusUpdated;
-use App\Helpers\InvoiceHelper;
-use App\Http\Requests\CreateRequest;
+use App\Http\Requests\CreateOrderRequest;
 use App\Mail\CreateOrderMail;
 use App\Models\Order;
 use App\Notifications\OrderStatusNotification;
@@ -15,49 +14,42 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
+require_once app_path('Helpers/helpers.php');
 
 class OrderController extends Controller
 {
-    public function filterOrders()
+    public function index(Request $request)
     {
-        $userId=Auth::id();
-
-        $orders=Order::query()->where('user_id',$userId)->get();
-        $filter_orders=$orders->filter(function ($order){
-            return $order->status==='delivered';
-        })->sortByDesc('total_price');
-
-        return response()->json($filter_orders);
-    }
-
-    public function getUserOrders()
-    {
-        $userId=Auth::id();
-
-        $orders= Cache::remember("user_orders_{$userId}",now()->addMinutes(10),function() use($userId){
-            return Order::query()->where('user_id',$userId)->get();
-        });
-
+        $status=$request->query('status');
         // $cache=Cache::get("user_orders_{$userId}");
 
-        return response()->json($orders);
+        return response()->json(Cache::remember("user_orders_".Auth::id()."_status_{$status}",now()->addMinutes(10),function() use($status){
+            return Order::filterByStatus($status)
+            ->where('user_id',Auth::id())->paginate()
+            ->toArray();
+        }));
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(CreateRequest $request)
+    public function store(CreateOrderRequest $request)
     {
         $executed=RateLimiter::attempt(
-            'creating-order:'.Auth::user()->id,5,function() use($request){
+            'creating-order:'.Auth::user()->id,5,function() use($request,&$order){
 
                 $data=$request->validated();
         
                 $order=Order::query()->create([
                     'user_id'=>Auth::id(),
                     'total_price'=>$data['total_price'],
-                    'invoice_number'=>InvoiceHelper::generatUniqueNUmber()
+                    'invoice_number'=>generateUniqueNumber()
                 ]);
+
+                $receipt=generateReceipt($order);
+
+                $order->receipt=$receipt;
+                $order->save();
                 
                 event(new OrderPlaced($order,Auth::user()));
         
@@ -68,13 +60,13 @@ class OrderController extends Controller
         );
         
         if ($executed){
-            return response()->json(['message'=>__('messages.order_created')]);
+            return response()->json(['message'=>__('messages.order_created'),'order'=>$order]);
         }
 
         return response()->json(['message'=>__('rate_limited')],429);
     }
 
-    public function updateStatus(Request $request,Order $order)
+    public function update(Request $request,Order $order)
     {
         $data=$request->validate([
             'status'=>'required|in:processing,sent,delivered'
@@ -92,31 +84,20 @@ class OrderController extends Controller
         return response()->json(['message'=>__('order_updated'),'order'=>$order]);
     }
 
-    public function total_prices()
+    public function totalPrices(Request $request)
     {
-        $cache=Cache::store('file')->remember('total_prices',now()->addHour(1),function(){
-            return Order::query()->sum('total_price');
+        $start=$request->query('start_date');
+        $end=$request->query('end_date');
+
+        $key="total_prices_{$start}_{$end}";
+
+        $cache=Cache::store('file')->remember("$key",now()->addHour(1),function() use($start,$end){
+            return Order::query()
+            ->when($start, fn($query)=>$query->whereDate('created_at','>=',$start))
+            ->when($end, fn($query)=>$query->whereDate('created_at','<=',$end))
+            ->sum('total_price');
         });
 
-        return response()->json($cache);
-    }
-
-
-    public function uploadReceipt(Request $request, Order $order)
-    {
-        $request->validate([
-            'receipt'=>'required|file|mimes:jpg,png,pdf|max:2048'
-        ]);
-
-        if($request->hasFile('receipt')){
-            $file=$request->file('receipt');
-
-            $path=$file->store('orders','local');
-
-            $order->receipt=$path;
-            $order->save();
-        }
-
-        return response()->json(['message'=>__('receipt_uploaded'),'order'=>$order]);
+        return response()->json(['total_prices'=>$cache]);
     }
 }

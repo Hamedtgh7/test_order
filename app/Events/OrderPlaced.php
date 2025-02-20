@@ -3,6 +3,7 @@
 namespace App\Events;
 
 use App\Models\Order;
+use App\Models\User;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -15,15 +16,11 @@ class OrderPlaced
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $order;
-    public $user;
     /**
      * Create a new event instance.
      */
-    public function __construct(Order $order,$user)
+    public function __construct(public Order $order,public User $user)
     {
-        $this->user=$user;
-        $this->order=$order;
     }
 
     /**

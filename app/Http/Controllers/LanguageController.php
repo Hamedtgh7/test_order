@@ -15,13 +15,11 @@ class LanguageController extends Controller
             return response()->json(['message'=>'Invalid language'],400);
         }
 
-        if(Auth::check()){
-            Auth::user()->update(['locale'=>$lang]);
-        }
+        Auth::user()->update(['locale'=>$lang]);        
         
         Session::put('locale',$lang);
         App::setlocale($lang);
 
-        return response()->json(['messahe'=>'language changed']);
+        return response()->json(['message'=>'language changed']);
     }
 }

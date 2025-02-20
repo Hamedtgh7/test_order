@@ -13,7 +13,7 @@ class DeleteOrders extends Command
      *
      * @var string
      */
-    protected $signature = 'app:delete-orders';
+    protected $signature = 'orders:delete-orders';
 
     /**
      * The console command description.

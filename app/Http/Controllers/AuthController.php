@@ -14,22 +14,17 @@ class AuthController extends Controller
         $data=$request->validate([
             'name'=>'required|max:30',
             'email'=>'required|email',
-            'password'=>'required|min:6'
+            'password'=>'required|min:6|max:30'
         ]);
 
-        $user=User::query()->create([
+        User::query()->create([
             'name'=>$data['name'],
             'email'=>$data['email'],
             'password'=>Hash::make($data['password'])
         ]);
 
-        Auth::login($user);
-
-        $token=$user->createToken('StoreManager')->plainTextToken;
-
         return response()->json([
             'message'=>'User registered',
-            'token'=>$token
         ]);
     }
 
@@ -37,7 +32,7 @@ class AuthController extends Controller
     {
         $data=$request->validate([
             'email'=>'required|email',
-            'password'=>'required|min:6'
+            'password'=>'required|min:6|max:30'
         ]);
 
         if(Auth::attempt(['email'=>$data['email'],'password'=>$data['password']])){

@@ -15,13 +15,11 @@ class OrderStatusUpdated implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $order;
     /**
      * Create a new event instance.
      */
-    public function __construct(Order $order)
+    public function __construct(public Order $order)
     {
-        $this->order=$order;
     }
 
     /**

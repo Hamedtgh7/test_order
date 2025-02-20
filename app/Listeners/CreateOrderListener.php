@@ -10,7 +10,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 
-class SendCreateAlarm implements ShouldQueue
+class CreateOrderListener implements ShouldQueue
 {
     use InteractsWithQueue;
     /**

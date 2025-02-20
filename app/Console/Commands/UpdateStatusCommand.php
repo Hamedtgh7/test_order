@@ -13,7 +13,7 @@ class UpdateStatusCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'app:update-status';
+    protected $signature = 'orders:update-status-to-sent';
 
     /**
      * The console command description.
